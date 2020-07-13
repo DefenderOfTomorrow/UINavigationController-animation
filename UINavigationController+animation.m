@@ -10,14 +10,27 @@
 #import <objc/runtime.h>
 @implementation UINavigationController (animation)
 
+static inline void zn_swizzleSelector(Class theClass, SEL originalSelector, SEL swizzledSelector) {
+    Method originalMethod = class_getInstanceMethod(theClass, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(theClass, swizzledSelector);
+    method_exchangeImplementations(originalMethod, swizzledMethod);
+}
+
+static inline BOOL zn_addMethod(Class theClass, SEL selector, Method method) {
+    return class_addMethod(theClass, selector,  method_getImplementation(method),  method_getTypeEncoding(method));
+}
+
+
 + (void)load{
-    Method M1 = class_getInstanceMethod([self class], @selector(pushViewController:animated:));
-    Method M2 = class_getInstanceMethod([self class], @selector(pushToVC:));
-    method_exchangeImplementations(M1, M2);
+    Method pushMethod = class_getInstanceMethod([self class], @selector(pushToVC:));
+    if (zn_addMethod([self class], @selector(pushToVC:), pushMethod)) {
+        zn_swizzleSelector([self class], @selector(pushViewController:animated:), @selector(pushToVC:));
+    }
     
-    Method M3 = class_getInstanceMethod([self class], @selector(popViewControllerAnimated:));
-    Method M4 = class_getInstanceMethod([self class], @selector(pop));
-    method_exchangeImplementations(M3, M4);
+    Method popMethod = class_getInstanceMethod([self class], @selector(pop));
+    if (zn_addMethod([self class], @selector(pop), popMethod)) {
+        zn_swizzleSelector([self class], @selector(popViewControllerAnimated:), @selector(pop));
+    }
 }
 
 - (void)pushToVC:(UIViewController *)vc{
